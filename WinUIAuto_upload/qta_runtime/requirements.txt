@@ -1,0 +1,5 @@
+# Windows runtime only; no Android, ADB, OCR or cloud-upload dependencies.
+qtaf==5.6.12
+pywinauto==0.6.9
+pywin32==312
+Pillow==11.3.0

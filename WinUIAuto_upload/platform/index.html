@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>元宝 Windows UI 自动化平台</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">UI AUTOMATION CACHE AGENT</p>
+        <h1>人工测试经验沉淀平台</h1>
+      </div>
+      <div class="topbar-actions">
+        <label class="case-search">
+          <span>搜索</span>
+          <input id="caseSearch" type="search" placeholder="输入用例名称或 ID" autocomplete="off" />
+        </label>
+        <label class="case-picker">
+          <span>历史用例</span>
+          <select id="caseSelect"></select>
+        </label>
+        <button id="loadCaseButton" class="secondary-button">加载用例</button>
+        <button id="renameCaseButton" class="secondary-button">重命名</button>
+        <button id="deleteCaseButton" class="danger-button">删除</button>
+        <span id="sourceBadge" class="source-badge"><span></span>等待原生用例</span>
+      </div>
+    </header>
+
+    <section class="flow-strip" aria-label="核心流程">
+      <div id="flowCapture" class="flow-step"><strong>01</strong><span>原生 Agent</span></div>
+      <div class="flow-arrow">→</div>
+      <div id="flowTrace" class="flow-step active"><strong>02</strong><span>Raw Trace</span></div>
+      <div class="flow-arrow">→</div>
+      <div id="flowCache" class="flow-step"><strong>03</strong><span>复核 / Cache</span></div>
+      <div class="flow-arrow">→</div>
+      <div id="flowQta" class="flow-step muted"><strong>04</strong><span>AI 生成 QTA</span></div>
+    </section>
+
+    <section class="recorder-guide">
+      <div>
+        <p class="section-label">NATIVE AGENT + MANAGEMENT</p>
+        <strong>原生 Agent 负责采集，当前网页负责用例管理与人工复核</strong>
+        <span>只运行 <code>native/YuanbaoRecorder.Agent/start-agent.ps1</code>；平台会校验正式 Current 版本，再允许录制与回放。</span>
+        <span id="operationMessage" class="operation-message">已连接原生用例目录。</span>
+      </div>
+      <span class="recorder-guide-badge">Raw Trace 永久只读</span>
+    </section>
+
+    <main class="workspace">
+      <section class="panel playback-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="section-label">MANUAL SESSION</p>
+            <h2 id="sessionTitle">人工测试过程</h2>
+          </div>
+          <span id="sessionStatus" class="status-chip">复核模式</span>
+        </div>
+
+        <div class="phone-area desktop-area">
+          <div>
+            <div id="phoneShell" class="phone-shell desktop-shell">
+              <div class="phone-speaker"></div>
+              <img id="phoneFrame" alt="元宝 Windows 客户端采集或回放画面" draggable="false" />
+              <div id="targetBox" class="target-box" hidden></div>
+              <div id="phoneBusy" class="phone-busy" hidden>正在采集 Windows 证据…</div>
+            </div>
+            <p id="phoneHint" class="phone-hint">回放模式：通过时间线查看历史操作。</p>
+          </div>
+
+          <aside class="current-action-card">
+            <p class="section-label">CURRENT ACTION</p>
+            <h3 id="currentActionTitle">准备开始</h3>
+            <dl id="currentActionMeta"></dl>
+          </aside>
+        </div>
+
+        <div class="manual-controls">
+          <label class="inline-option"><input id="restartBeforeReplay" type="checkbox" /> 回放前重启元宝</label>
+          <button id="replayCaseButton" class="secondary-button" disabled>在元宝中执行真实回放</button>
+          <span class="manual-note">管理平台只编辑复核稿，原始采集证据不会被修改或删除。</span>
+        </div>
+
+        <div class="player-controls">
+          <button id="playButton" class="play-button" aria-label="仅播放录制证据" title="仅播放截图证据，不会操作元宝">▶</button>
+          <span id="currentTime">00:00.0</span>
+          <input id="seekBar" type="range" min="0" value="0" step="100" />
+          <span id="totalTime">00:00.0</span>
+        </div>
+
+        <div>
+          <div class="timeline-title">
+            <span>操作时间线</span>
+            <div class="timeline-title-actions">
+              <span id="actionCounter">0 个动作</span>
+              <button id="addStepButton" class="compact-button" disabled>＋ 新增步骤</button>
+            </div>
+          </div>
+          <div id="timeline" class="timeline"></div>
+        </div>
+      </section>
+
+      <section class="panel data-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="section-label">DEPOSITED ASSET</p>
+            <h2>沉淀结果</h2>
+          </div>
+          <div>
+            <button id="replayReportButton" class="secondary-button">导出回放报告</button>
+            <button id="downloadButton" class="secondary-button">导出当前内容</button>
+          </div>
+        </div>
+
+        <nav class="tabs" aria-label="数据类型">
+          <button class="tab active" data-tab="trace">Raw + Review</button>
+          <button class="tab" data-tab="cache">Cache Case</button>
+          <button class="tab" data-tab="qta">Generated QTA</button>
+        </nav>
+
+        <section id="codegenToolbar" class="codegen-toolbar" hidden>
+          <div>
+            <strong>AI 生成 Windows QTA</strong>
+            <span id="codegenStatus">正在读取 API 配置…</span>
+          </div>
+          <label>
+            <span>Owner</span>
+            <input id="codegenOwner" value="yuanbao-ai" maxlength="80" />
+          </label>
+          <button id="generateQtaButton" class="primary-button" disabled>生成 / 重新生成</button>
+          <button id="copyQtaButton" class="secondary-button" disabled>复制代码</button>
+        </section>
+
+        <div id="summaryCard" class="summary-card"></div>
+        <pre id="dataViewer" class="data-viewer"></pre>
+      </section>
+    </main>
+
+    <footer>
+      <span id="captureSourceNote">正在加载采集数据</span>
+      <span>真实采集证据：Window Screenshot + UIAutomation Tree + Native Input Event</span>
+    </footer>
+
+    <dialog id="stepDialog" class="step-dialog">
+      <form id="stepForm">
+        <div class="dialog-heading">
+          <div>
+            <p class="section-label">EDIT STEP</p>
+            <h2 id="stepDialogTitle">编辑步骤</h2>
+          </div>
+          <button id="closeStepDialogButton" class="icon-button" type="button" aria-label="关闭">×</button>
+        </div>
+
+        <div class="step-form-grid">
+          <label>
+            <span>动作类型</span>
+            <select id="stepType">
+              <option value="wait_time">固定等待时间</option>
+              <option value="wait_for_target">等待控件（兼容旧用例）</option>
+              <option value="click">点击</option>
+              <option value="right_click">右键点击</option>
+              <option value="input_text">输入文本</option>
+              <option value="key_press">按键</option>
+              <option value="scroll">滚动</option>
+              <option value="drag">拖动</option>
+              <option value="condition">条件判断</option>
+            </select>
+          </label>
+          <label class="wide-field">
+            <span>步骤名称</span>
+            <input id="stepLabel" maxlength="200" required />
+          </label>
+          <label id="stepValueField" class="wide-field">
+            <span>输入内容</span>
+            <input id="stepValue" maxlength="2000" />
+          </label>
+          <label id="stepConditionTypeField">
+            <span>判断条件</span>
+            <select id="stepConditionType">
+              <option value="target_exists">目标控件存在</option>
+              <option value="target_not_exists">目标控件不存在</option>
+              <option value="same_kind_exists">存在任意同类控件（忽略名称）</option>
+              <option value="same_kind_not_exists">不存在同类控件（忽略名称）</option>
+            </select>
+          </label>
+          <label id="stepSkipCountField">
+            <span>IF 成立分支步骤数</span>
+            <input id="stepSkipCount" type="number" min="1" max="20" value="1" />
+          </label>
+          <label id="stepFalseCountField">
+            <span>ELSE 分支步骤数</span>
+            <input id="stepFalseCount" type="number" min="0" max="20" value="0" />
+          </label>
+          <label id="stepTimeoutField">
+            <span>固定等待（秒）</span>
+            <input id="stepTimeout" type="number" min="1" max="120" value="10" />
+          </label>
+          <label id="stepTargetField" class="wide-field">
+            <span>目标控件名称</span>
+            <input id="stepTargetRole" maxlength="300" />
+          </label>
+          <label id="stepLocatorTypeField">
+            <span>定位方式</span>
+            <select id="stepLocatorType">
+              <option value="automation_id">Automation ID</option>
+              <option value="name_control_type">Name + Control Type</option>
+              <option value="class_name">Class Name</option>
+              <option value="coordinate">Coordinate</option>
+            </select>
+          </label>
+          <label id="stepLocatorValueField" class="wide-field">
+            <span>定位值</span>
+            <input id="stepLocatorValue" maxlength="500" />
+          </label>
+          <label id="stepXField">
+            <span>点击 X</span>
+            <input id="stepX" type="number" min="0" />
+          </label>
+          <label id="stepYField">
+            <span>点击 Y</span>
+            <input id="stepY" type="number" min="0" />
+          </label>
+          <label id="stepEndXField">
+            <span>拖动终点 X</span>
+            <input id="stepEndX" type="number" min="0" />
+          </label>
+          <label id="stepEndYField">
+            <span>拖动终点 Y</span>
+            <input id="stepEndY" type="number" min="0" />
+          </label>
+          <label id="stepDurationField">
+            <span>拖动时长（毫秒）</span>
+            <input id="stepDuration" type="number" min="50" max="10000" value="500" />
+          </label>
+          <label id="stepWheelDeltaField">
+            <span>滚轮增量（负数向下）</span>
+            <input id="stepWheelDelta" type="number" step="120" value="-360" />
+          </label>
+        </div>
+
+        <p class="dialog-note">保存后更新 Review Trace 和 Cache Case，原始 Raw Trace 保持不变。</p>
+        <div class="dialog-actions">
+          <button id="cancelStepButton" class="secondary-button" type="button">取消</button>
+          <button class="primary-button" type="submit">保存步骤</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="assertionDialog" class="step-dialog">
+      <form id="assertionForm">
+        <div class="dialog-heading">
+          <div>
+            <p class="section-label">EDIT ASSERTION</p>
+            <h2 id="assertionDialogTitle">添加断言</h2>
+          </div>
+          <button id="closeAssertionDialogButton" class="icon-button" type="button" aria-label="关闭">×</button>
+        </div>
+
+        <div class="step-form-grid">
+          <label>
+            <span>我希望验证</span>
+            <select id="assertionType">
+              <option value="target_exists">控件存在（不校验名称）</option>
+              <option value="property_equals_name">控件标题/占位提示精确一致</option>
+              <option value="property_equals_value">输入内容精确一致</option>
+              <option value="target_not_exists">控件消失</option>
+              <option value="keywords_match_count">多个关键词至少命中指定数量</option>
+              <option value="text_contains" hidden>文本包含（历史兼容）</option>
+              <option value="property_equals" hidden>属性相等（历史高级类型）</option>
+              <option value="table_dimensions" hidden>表格行列数量正确（历史类型）</option>
+              <option value="descendant_count" hidden>区域内指定控件数量正确（历史类型）</option>
+              <option value="horizontal_bounds_within_window" hidden>内容不应横向超出窗口（历史类型）</option>
+              <option value="descendants_within_bounds" hidden>区域内容不应超出边界（历史类型）</option>
+            </select>
+          </label>
+          <label class="wide-field">
+            <span>验证说明（可选）</span>
+            <input id="assertionLabel" maxlength="200" placeholder="平台会根据验证内容自动生成" />
+          </label>
+          <label>
+            <span>验证范围</span>
+            <select id="assertionScope">
+              <option value="window">整个元宝窗口</option>
+              <option value="target">当前目标控件</option>
+              <option value="table">目标所属表格</option>
+            </select>
+          </label>
+          <label id="assertionExpectedField" class="wide-field">
+            <span>期望出现的文字</span>
+            <input id="assertionExpected" maxlength="2000" />
+          </label>
+          <label id="assertionMinimumField">
+            <span>至少命中/期望数量</span>
+            <input id="assertionMinimum" type="number" min="0" max="1000" step="1" value="3" />
+          </label>
+          <label id="assertionTimeoutField">
+            <span>断言等待（秒）</span>
+            <input id="assertionTimeout" type="number" min="1" max="120" step="1" value="10" />
+          </label>
+          <label id="assertionRowsField">
+            <span>数据行数</span>
+            <input id="assertionRows" type="number" min="0" max="1000" step="1" value="2" />
+          </label>
+          <label id="assertionColumnsField">
+            <span>列数</span>
+            <input id="assertionColumns" type="number" min="1" max="1000" step="1" value="3" />
+          </label>
+          <label id="assertionControlTypeField">
+            <span>控件类型</span>
+            <select id="assertionControlType">
+              <option value="Text">文字</option>
+              <option value="DataItem">表格项</option>
+              <option value="Button">按钮</option>
+              <option value="Edit">输入框</option>
+              <option value="Image">图片</option>
+              <option value="Group">区域</option>
+            </select>
+          </label>
+        </div>
+
+        <details class="assertion-advanced-fields">
+          <summary>高级定位信息（普通测试人员无需修改）</summary>
+          <div class="step-form-grid">
+            <label id="assertionTargetRoleField" class="wide-field">
+              <span>目标控件名称</span>
+              <input id="assertionTargetRole" maxlength="200" />
+            </label>
+            <label id="assertionLocatorTypeField">
+              <span>定位方式</span>
+              <select id="assertionLocatorType">
+                <option value="none">整个元宝窗口</option>
+                <option value="automation_id">Automation ID</option>
+                <option value="name">Name</option>
+                <option value="class_name">Class Name</option>
+                <option value="control_type">Control Type</option>
+              </select>
+            </label>
+            <label id="assertionLocatorValueField" class="wide-field">
+              <span>定位值</span>
+              <input id="assertionLocatorValue" maxlength="500" />
+            </label>
+            <label id="assertionPropertyField">
+              <span>属性</span>
+              <select id="assertionProperty">
+                <option value="name">Name</option>
+                <option value="automation_id">Automation ID</option>
+                <option value="class_name">Class Name</option>
+                <option value="control_type">Control Type</option>
+                <option value="enabled">Enabled</option>
+              </select>
+            </label>
+          </div>
+        </details>
+
+        <p class="dialog-note">推荐在录制时按住 Ctrl 并右键元宝目标添加验证点；这里主要用于确认、修改和补充。</p>
+        <div class="dialog-actions">
+          <button id="cancelAssertionButton" class="secondary-button" type="button">取消</button>
+          <button class="primary-button" type="submit">保存断言</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script>
+      if (window.location.protocol === "file:") {
+        document.body.textContent = "请先在项目根目录运行 npm start，再通过终端输出的服务地址访问管理平台。此页面需要 HTTP 服务，不能直接打开文件。";
+      } else {
+        const appScript = document.createElement("script");
+        appScript.src = "app.js";
+        document.body.appendChild(appScript);
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,6 @@
+{
+  "apiKey": "",
+  "baseUrl": "https://api.example.com/v1",
+  "model": "YOUR_MODEL_ID",
+  "apiStyle": "responses"
+}

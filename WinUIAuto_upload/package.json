@@ -1,0 +1,18 @@
+{
+  "name": "yuanbao-windows-automation",
+  "version": "0.16.0",
+  "private": true,
+  "description": "Windows UI recording, review, replay and QTA generation for Yuanbao",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node platform/server.js",
+    "start:agent": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File platform/native/YuanbaoRecorder.Agent/start-agent.ps1",
+    "build:agent": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File platform/native/YuanbaoRecorder.Agent/build.ps1",
+    "test": "node --test platform/tests/native-case-store.test.js platform/tests/replay-task-store.test.js platform/tests/server-replay-api.test.js platform/tests/qta-code-generator.test.js platform/tests/windows-runtime-contract.test.js",
+    "test:python": "qta_runtime/.venv/Scripts/python.exe -B -m unittest discover -s qta_runtime/tests -p test_*.py -v",
+    "test:agent": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File platform/native/YuanbaoRecorder.Agent/smoke-test.ps1",
+    "report": "node platform/scripts/generate-acceptance-report.js"
+  }
+}
